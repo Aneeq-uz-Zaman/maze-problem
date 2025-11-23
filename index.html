@@ -27,6 +27,12 @@
             <div class="action-controls">
                 <button id="solveBtn" class="action-btn solve-btn">Solve Maze</button>
                 <button id="clearBtn" class="action-btn clear-btn">Clear Maze</button>
+                <select id="algorithmSelect" class="action-select" title="Choose algorithm">
+                    <option value="dfs" selected>DFS</option>
+                    <option value="bfs">BFS</option>
+                    <option value="dijkstra">Dijkstra</option>
+                </select>
+                <button id="toggleWeightsBtn" class="action-btn" title="Toggle random weights for Dijkstra" style="display:none;">Enable Weights</button>
             </div>
         </div>
 

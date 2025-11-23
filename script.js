@@ -20,6 +20,8 @@ class MazePathFinder {
         this.endPos = null;
         this.currentMode = 'wall'; // 'start', 'end', 'wall'
         this.isSearching = false;
+        this.weightsEnabled = false;
+        this.weights = [];
         
         this.initializeMaze();
         this.createMazeDOM();
@@ -50,6 +52,9 @@ class MazePathFinder {
             Array(this.gridSize).fill(false)
         );
         this.path = [];
+        this.weights = Array(this.gridSize).fill().map(() =>
+            Array(this.gridSize).fill(1)
+        );
     }
     
     /**
@@ -89,6 +94,8 @@ class MazePathFinder {
         document.getElementById('addWallsBtn').addEventListener('click', () => this.setMode('wall'));
         document.getElementById('solveBtn').addEventListener('click', () => this.solveMaze());
         document.getElementById('clearBtn').addEventListener('click', () => this.clearMaze());
+        document.getElementById('algorithmSelect').addEventListener('change', (e) => this.handleAlgorithmChange(e));
+        document.getElementById('toggleWeightsBtn').addEventListener('click', () => this.toggleWeights());
         
         // Handle window resize for responsive grid
         window.addEventListener('resize', () => {
@@ -99,6 +106,62 @@ class MazePathFinder {
                 this.createMazeDOM();
             }
         });
+    }
+
+    /**
+     * Handles algorithm selection change (show/hide weights toggle)
+     */
+    handleAlgorithmChange(e) {
+        const value = e.target.value;
+        const weightsBtn = document.getElementById('toggleWeightsBtn');
+        if (value === 'dijkstra') {
+            weightsBtn.style.display = 'inline-block';
+        } else {
+            weightsBtn.style.display = 'none';
+            if (this.weightsEnabled) {
+                this.weightsEnabled = false;
+                this.clearWeightsDisplay();
+            }
+        }
+        this.clearSearchResults();
+        this.updateStatus(`Algorithm set to ${value.toUpperCase()}.`);
+    }
+
+    /**
+     * Toggle random weights for Dijkstra (1-9) displayed inside cells.
+     */
+    toggleWeights() {
+        this.weightsEnabled = !this.weightsEnabled;
+        const btn = document.getElementById('toggleWeightsBtn');
+        if (this.weightsEnabled) {
+            for (let r = 0; r < this.gridSize; r++) {
+                for (let c = 0; c < this.gridSize; c++) {
+                    if (this.maze[r][c] === 0) {
+                        this.weights[r][c] = Math.floor(Math.random() * 9) + 1;
+                        const cell = this.getCellElement(r, c);
+                        cell.textContent = this.weights[r][c];
+                    }
+                }
+            }
+            btn.textContent = 'Disable Weights';
+            this.updateStatus('Random weights enabled (used only by Dijkstra).');
+        } else {
+            this.clearWeightsDisplay();
+            btn.textContent = 'Enable Weights';
+            this.updateStatus('Weights disabled. Dijkstra treats all edges cost = 1.');
+        }
+    }
+
+    clearWeightsDisplay() {
+        for (let r = 0; r < this.gridSize; r++) {
+            for (let c = 0; c < this.gridSize; c++) {
+                const cell = this.getCellElement(r, c);
+                if (cell && !cell.classList.contains('start') && !cell.classList.contains('end')) {
+                    cell.textContent = '';
+                    this.weights[r][c] = 1;
+                }
+            }
+        }
     }
     
     /**
@@ -252,12 +315,24 @@ class MazePathFinder {
         );
         this.path = [];
         
-        // Start DFS from the start position
-        const pathFound = await this.dfs(this.startPos.row, this.startPos.col);
-        
-        if (pathFound) {
+        const algorithm = document.getElementById('algorithmSelect').value;
+        let result = { found: false, cost: null };
+        if (algorithm === 'dfs') {
+            const found = await this.runDFS();
+            result.found = found;
+        } else if (algorithm === 'bfs') {
+            result = await this.runBFS();
+        } else if (algorithm === 'dijkstra') {
+            result = await this.runDijkstra();
+        }
+
+        if (result.found) {
             await this.animatePath();
-            this.updateStatus(`Path found! Length: ${this.path.length} steps. DFS explored ${this.countVisited()} cells.`);
+            let msg = `Path found! Length: ${this.path.length} steps. Explored ${this.countVisited()} cells.`;
+            if (algorithm === 'dijkstra' && result.cost !== null) {
+                msg += ` Total cost: ${result.cost}.`;
+            }
+            this.updateStatus(msg);
         } else {
             this.updateStatus("No path exists between start and end points!");
         }
@@ -326,6 +401,112 @@ class MazePathFinder {
         
         // No path found through this cell
         return false;
+    }
+
+    /**
+     * Wrapper to run DFS starting at start position
+     */
+    async runDFS() {
+        const found = await this.dfs(this.startPos.row, this.startPos.col);
+        return found;
+    }
+
+    /**
+     * Breadth-First Search implementation for shortest path in unweighted graphs.
+     */
+    async runBFS() {
+        const queue = [];
+        const prev = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(null));
+        this.visited = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(false));
+        queue.push(this.startPos);
+        this.visited[this.startPos.row][this.startPos.col] = true;
+
+        const directions = [[-1,0],[1,0],[0,-1],[0,1]];
+        while (queue.length) {
+            const current = queue.shift();
+            const { row, col } = current;
+            if (row === this.endPos.row && col === this.endPos.col) {
+                this.buildPathFromPrev(prev, row, col);
+                return { found: true, cost: this.path.length - 1 };
+            }
+            for (const [dx, dy] of directions) {
+                const nr = row + dx, nc = col + dy;
+                if (nr < 0 || nr >= this.gridSize || nc < 0 || nc >= this.gridSize) continue;
+                if (this.maze[nr][nc] === 1 || this.visited[nr][nc]) continue;
+                this.visited[nr][nc] = true;
+                prev[nr][nc] = { row, col };
+                const cell = this.getCellElement(nr, nc);
+                if (!(nr === this.endPos.row && nc === this.endPos.col) && !(nr === this.startPos.row && nc === this.startPos.col)) {
+                    cell.classList.add('visited');
+                }
+                queue.push({ row: nr, col: nc });
+            }
+            await this.sleep(40);
+        }
+        return { found: false, cost: null };
+    }
+
+    buildPathFromPrev(prev, row, col) {
+        const rev = [];
+        let cr = row, cc = col;
+        while (cr !== null && cc !== null) {
+            rev.push({ row: cr, col: cc });
+            const p = prev[cr][cc];
+            if (!p) break;
+            cr = p.row; cc = p.col;
+        }
+        this.path = rev.reverse();
+    }
+
+    /**
+     * Dijkstra's algorithm for weighted shortest path (uniform cost if weights disabled).
+     */
+    async runDijkstra() {
+        const dist = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(Infinity));
+        const prev = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(null));
+        const visitedLocal = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(false));
+        dist[this.startPos.row][this.startPos.col] = 0;
+        const directions = [[-1,0],[1,0],[0,-1],[0,1]];
+
+        for (;;) {
+            // Find unvisited node with smallest dist
+            let minDist = Infinity, minNode = null;
+            for (let r = 0; r < this.gridSize; r++) {
+                for (let c = 0; c < this.gridSize; c++) {
+                    if (!visitedLocal[r][c] && dist[r][c] < minDist) {
+                        minDist = dist[r][c];
+                        minNode = { row: r, col: c };
+                    }
+                }
+            }
+            if (!minNode) break; // no reachable nodes left
+            const { row, col } = minNode;
+            if (row === this.endPos.row && col === this.endPos.col) {
+                this.buildPathFromPrev(prev, row, col);
+                this.visited = visitedLocal;
+                return { found: true, cost: dist[row][col] };
+            }
+            visitedLocal[row][col] = true;
+            if (!(row === this.startPos.row && col === this.startPos.col)) {
+                const cell = this.getCellElement(row, col);
+                cell.classList.add('visited');
+            }
+            for (const [dx, dy] of directions) {
+                const nr = row + dx, nc = col + dy;
+                if (nr < 0 || nr >= this.gridSize || nc < 0 || nc >= this.gridSize) continue;
+                if (this.maze[nr][nc] === 1) continue;
+                if (visitedLocal[nr][nc]) continue;
+                const weight = this.weightsEnabled ? this.weights[nr][nc] : 1;
+                const newDist = dist[row][col] + weight;
+                if (newDist < dist[nr][nc]) {
+                    dist[nr][nc] = newDist;
+                    prev[nr][nc] = { row, col };
+                }
+            }
+            await this.sleep(40);
+        }
+        this.visited = visitedLocal;
+        return { found: false, cost: null };
     }
     
     /**

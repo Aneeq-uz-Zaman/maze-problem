@@ -22,10 +22,12 @@ An interactive web application that demonstrates **graph theory** and **recursio
 - **Add/Remove Walls** (black) - Click to create obstacles
 
 ### 🔍 Visual Algorithm Execution
-- **Real-time DFS visualization** - Watch the algorithm explore the maze
-- **Visited cells** (light blue) - Shows the search progression
-- **Final path** (yellow) - Highlights the discovered route
-- **Search statistics** - Displays path length and cells explored
+- **DFS (Depth-First Search)** – Deep recursive exploration & backtracking
+- **BFS (Breadth-First Search)** – Guarantees shortest path (fewest edges) in unweighted grid
+- **Dijkstra** – Computes minimum total cost (uniform cost when weights disabled, weighted when enabled)
+- **Visited cells** (light blue) show exploration order
+- **Final path** (yellow) highlights the result
+- **Statistics**: path length, explored cells, and total cost (Dijkstra)
 
 ### 📱 Responsive Design
 - **Mobile-friendly** layout with touch support
@@ -57,8 +59,10 @@ An interactive web application that demonstrates **graph theory** and **recursio
 1. **Set Start Point**: Click "Set Start" button, then click a cell
 2. **Set End Point**: Click "Set End" button, then click another cell
 3. **Add Walls** (optional): Click "Add/Remove Walls", then click cells to create obstacles
-4. **Solve Maze**: Click "Solve Maze" to run the DFS algorithm
-5. **Clear and Repeat**: Click "Clear Maze" to start over
+4. **Choose Algorithm**: Select DFS / BFS / Dijkstra from the dropdown
+5. **(Optional) Enable Weights**: For Dijkstra, toggle random cell weights (1–9) to change path cost
+6. **Solve Maze**: Click "Solve Maze" to run the selected algorithm
+7. **Clear and Repeat**: Click "Clear Maze" to start over
 
 ## 🧩 Algorithm Implementation
 
@@ -94,6 +98,42 @@ async dfs(row, col) {
 ```
 
 ### Key Features:
+
+### Breadth-First Search (BFS)
+Finds shortest path in terms of edge count (steps) for unweighted grids.
+```javascript
+async runBFS() {
+    const queue = [startPos];
+    visited[start.row][start.col] = true;
+    while (queue.length) {
+        const {row, col} = queue.shift();
+        if (row === end.row && col === end.col) { /* build path */ break; }
+        for (const [dx, dy] of dirs) {
+            const nr = row + dx, nc = col + dy;
+            // bounds & wall & visited checks
+            queue.push({row:nr,col:nc}); visited[nr][nc] = true; prev[nr][nc] = {row, col};
+        }
+        await sleep(40); // animation pacing
+    }
+}
+```
+
+### Dijkstra's Algorithm
+Computes minimum cumulative cost path. When weights are disabled it behaves like BFS (uniform cost). With weights enabled each move adds destination cell weight.
+```javascript
+async runDijkstra() {
+    dist[start.row][start.col] = 0;
+    while (unvisited exists) {
+        const cur = extractMin(); // linear scan (small grid)
+        if (cur == end) break;
+        for (neighbor of neighbors(cur)) {
+            newDist = dist[cur] + (weightsEnabled ? weight(neighbor) : 1);
+            if (newDist < dist[neighbor]) { dist[neighbor] = newDist; prev[neighbor] = cur; }
+        }
+        await sleep(40);
+    }
+}
+```
 - **Recursive exploration** of adjacent cells
 - **Backtracking** when dead ends are encountered
 - **Path reconstruction** by tracking successful routes
@@ -118,6 +158,7 @@ maze-path-finder/
 - **Vanilla JavaScript**: ES6+ features, async/await, DOM manipulation
 - **CSS Grid**: For creating the maze layout
 - **CSS Animations**: Visual feedback for algorithm execution
+- **Algorithms**: DFS, BFS, Dijkstra (with optional random weights)
 
 ### Responsive Breakpoints
 - **Desktop** (≥768px): 15×15 grid, full feature set
@@ -205,3 +246,8 @@ This project is open source and available under the [MIT License](LICENSE).
 ---
 
 **Built with ❤️ for educational purposes** | **Demonstrates graph theory and recursive algorithms**
+
+### Algorithm & Weights Customization
+- **Algorithm Dropdown**: Switch between DFS (depth/backtracking), BFS (shortest path), and Dijkstra (cost-based optimal path).
+- **Weights Toggle (Dijkstra)**: Adds random integer costs (1–9) to open cells; path total cost displayed after run.
+- **Educational Use**: Compare path length vs path cost; observe how weights alter route selection.
