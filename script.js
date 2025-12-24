@@ -1,18 +1,19 @@
 /**
  * Maze Path Finder - Discrete Mathematics Project
- * Implements Depth-First Search (DFS) algorithm for pathfinding
+ * Implements DFS, BFS, Dijkstra, and A* algorithms for pathfinding
  * 
  * Graph Theory Concepts:
  * - Each cell represents a vertex in the graph
  * - Adjacent cells represent edges between vertices
- * - DFS explores the graph by recursively visiting connected vertices
+ * - Different algorithms explore the graph using different strategies
+ * - A* uses heuristics to find optimal paths efficiently
  * - The maze is represented as a 2D adjacency structure
  */
 
 class MazePathFinder {
     constructor() {
-        // Determine grid size based on screen size
-        this.gridSize = this.getResponsiveGridSize();
+        // Default grid size
+        this.gridSize = 15;
         this.maze = [];
         this.visited = [];
         this.path = [];
@@ -26,7 +27,7 @@ class MazePathFinder {
         this.initializeMaze();
         this.createMazeDOM();
         this.bindEvents();
-        this.updateStatus("Click 'Set Start' and choose a cell to begin");
+        this.updateStatus("✨ Click 'Set Start' and choose a cell to begin");
     }
     
     /**
@@ -58,7 +59,7 @@ class MazePathFinder {
     }
     
     /**
-     * Creates the visual grid in the DOM
+     * Creates the visual grid in the DOM with emoji representations
      * Uses CSS Grid for responsive layout
      */
     createMazeDOM() {
@@ -96,16 +97,31 @@ class MazePathFinder {
         document.getElementById('clearBtn').addEventListener('click', () => this.clearMaze());
         document.getElementById('algorithmSelect').addEventListener('change', (e) => this.handleAlgorithmChange(e));
         document.getElementById('toggleWeightsBtn').addEventListener('click', () => this.toggleWeights());
+        document.getElementById('applyGridSizeBtn').addEventListener('click', () => this.applyGridSize());
+        document.getElementById('clearComparisonBtn').addEventListener('click', () => this.clearComparison());
         
-        // Handle window resize for responsive grid
-        window.addEventListener('resize', () => {
-            const newSize = this.getResponsiveGridSize();
-            if (newSize !== this.gridSize) {
-                this.gridSize = newSize;
-                this.clearMaze();
-                this.createMazeDOM();
-            }
+        // Allow Enter key to apply grid size
+        document.getElementById('gridSizeInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.applyGridSize();
         });
+    }
+
+    /**
+     * Apply user-defined grid size
+     */
+    applyGridSize() {
+        const input = document.getElementById('gridSizeInput');
+        const newSize = parseInt(input.value);
+        
+        if (newSize < 5 || newSize > 30) {
+            this.updateStatus("❌ Grid size must be between 5 and 30!");
+            return;
+        }
+        
+        this.gridSize = newSize;
+        this.clearMaze();
+        this.createMazeDOM();
+        this.updateStatus(`✅ Grid size set to ${newSize}x${newSize}!`);
     }
 
     /**
@@ -114,7 +130,7 @@ class MazePathFinder {
     handleAlgorithmChange(e) {
         const value = e.target.value;
         const weightsBtn = document.getElementById('toggleWeightsBtn');
-        if (value === 'dijkstra') {
+        if (value === 'dijkstra' || value === 'astar') {
             weightsBtn.style.display = 'inline-block';
         } else {
             weightsBtn.style.display = 'none';
@@ -124,11 +140,11 @@ class MazePathFinder {
             }
         }
         this.clearSearchResults();
-        this.updateStatus(`Algorithm set to ${value.toUpperCase()}.`);
+        this.updateStatus(`🎯 Algorithm set to ${value.toUpperCase()}.`);
     }
 
     /**
-     * Toggle random weights for Dijkstra (1-9) displayed inside cells.
+     * Toggle random weights for Dijkstra/A* (1-9) displayed inside cells.
      */
     toggleWeights() {
         this.weightsEnabled = !this.weightsEnabled;
@@ -139,16 +155,18 @@ class MazePathFinder {
                     if (this.maze[r][c] === 0) {
                         this.weights[r][c] = Math.floor(Math.random() * 9) + 1;
                         const cell = this.getCellElement(r, c);
-                        cell.textContent = this.weights[r][c];
+                        if (!cell.classList.contains('start') && !cell.classList.contains('end')) {
+                            cell.textContent = this.weights[r][c];
+                        }
                     }
                 }
             }
-            btn.textContent = 'Disable Weights';
-            this.updateStatus('Random weights enabled (used only by Dijkstra).');
+            btn.textContent = '⚖️ Disable Weights';
+            this.updateStatus('⚖️ Random weights enabled (1-9 per cell).');
         } else {
             this.clearWeightsDisplay();
-            btn.textContent = 'Enable Weights';
-            this.updateStatus('Weights disabled. Dijkstra treats all edges cost = 1.');
+            btn.textContent = '⚖️ Enable Weights';
+            this.updateStatus('✅ Weights disabled. All edges cost = 1.');
         }
     }
 
@@ -177,9 +195,9 @@ class MazePathFinder {
         
         // Update status message
         const messages = {
-            start: "Click a cell to set the start point (green)",
-            end: "Click a cell to set the end point (red)",
-            wall: "Click cells to add/remove walls (black)"
+            start: "🟢 Click a cell to set the start point",
+            end: "🔴 Click a cell to set the end point",
+            wall: "🧱 Click cells to add/remove walls"
         };
         this.updateStatus(messages[mode]);
     }
@@ -237,6 +255,7 @@ class MazePathFinder {
         const prevStart = document.querySelector('.cell.start');
         if (prevStart) {
             prevStart.classList.remove('start');
+            prevStart.textContent = '';
             const prevRow = parseInt(prevStart.dataset.row);
             const prevCol = parseInt(prevStart.dataset.col);
             this.maze[prevRow][prevCol] = 0;
@@ -245,10 +264,11 @@ class MazePathFinder {
         // Set new start
         cell.classList.remove('wall', 'end');
         cell.classList.add('start');
+        cell.textContent = '🟢';
         this.startPos = { row, col };
         this.maze[row][col] = 0; // Ensure start is not a wall
         
-        this.updateStatus("Start point set! Now click 'Set End' and choose the destination.");
+        this.updateStatus("✅ Start point set! Now click 'Set End' and choose the destination.");
         this.setMode('end');
     }
     
@@ -260,6 +280,7 @@ class MazePathFinder {
         const prevEnd = document.querySelector('.cell.end');
         if (prevEnd) {
             prevEnd.classList.remove('end');
+            prevEnd.textContent = '';
             const prevRow = parseInt(prevEnd.dataset.row);
             const prevCol = parseInt(prevEnd.dataset.col);
             this.maze[prevRow][prevCol] = 0;
@@ -268,10 +289,11 @@ class MazePathFinder {
         // Set new end
         cell.classList.remove('wall', 'start');
         cell.classList.add('end');
+        cell.textContent = '🔴';
         this.endPos = { row, col };
         this.maze[row][col] = 0; // Ensure end is not a wall
         
-        this.updateStatus("End point set! Now you can add walls or click 'Solve Maze'.");
+        this.updateStatus("✅ End point set! Now you can add walls or click 'Solve Maze'.");
         this.setMode('wall');
     }
     
@@ -286,19 +308,21 @@ class MazePathFinder {
         
         if (cell.classList.contains('wall')) {
             cell.classList.remove('wall');
+            cell.textContent = '';
             this.maze[row][col] = 0;
         } else {
             cell.classList.add('wall');
+            cell.textContent = '🧱';
             this.maze[row][col] = 1;
         }
     }
     
     /**
-     * Main solver function - initiates DFS pathfinding
+     * Main solver function - initiates pathfinding
      */
     async solveMaze() {
         if (!this.startPos || !this.endPos) {
-            this.updateStatus("Please set both start and end points first!");
+            this.updateStatus("❌ Please set both start and end points first!");
             return;
         }
         
@@ -307,7 +331,9 @@ class MazePathFinder {
         this.isSearching = true;
         document.getElementById('solveBtn').disabled = true;
         this.clearSearchResults();
-        this.updateStatus("Searching for path using DFS algorithm...");
+        
+        const algorithm = document.getElementById('algorithmSelect').value;
+        this.updateStatus(`🔍 Searching for path using ${algorithm.toUpperCase()} algorithm...`);
         
         // Reset visited array
         this.visited = Array(this.gridSize).fill().map(() => 
@@ -315,7 +341,9 @@ class MazePathFinder {
         );
         this.path = [];
         
-        const algorithm = document.getElementById('algorithmSelect').value;
+        // Start timing
+        const startTime = performance.now();
+        
         let result = { found: false, cost: null };
         if (algorithm === 'dfs') {
             const found = await this.runDFS();
@@ -324,21 +352,166 @@ class MazePathFinder {
             result = await this.runBFS();
         } else if (algorithm === 'dijkstra') {
             result = await this.runDijkstra();
+        } else if (algorithm === 'astar') {
+            result = await this.runAStar();
         }
+
+        // End timing
+        const endTime = performance.now();
+        const executionTime = (endTime - startTime).toFixed(2);
 
         if (result.found) {
             await this.animatePath();
-            let msg = `Path found! Length: ${this.path.length} steps. Explored ${this.countVisited()} cells.`;
-            if (algorithm === 'dijkstra' && result.cost !== null) {
-                msg += ` Total cost: ${result.cost}.`;
+            const nodesExplored = this.countVisited();
+            const pathLength = this.path.length;
+            const pathCost = result.cost !== null ? result.cost : 'N/A';
+            
+            let msg = `✅ Path found! Length: ${pathLength} steps. Explored ${nodesExplored} cells.`;
+            if ((algorithm === 'dijkstra' || algorithm === 'astar') && result.cost !== null) {
+                msg += ` Total cost: ${pathCost}.`;
             }
+            msg += ` Time: ${executionTime}ms`;
             this.updateStatus(msg);
+            
+            // Add results to comparison table
+            this.addComparisonResult(algorithm.toUpperCase(), nodesExplored, pathLength, pathCost, executionTime);
         } else {
-            this.updateStatus("No path exists between start and end points!");
+            this.updateStatus("❌ No path exists between start and end points!");
         }
         
         this.isSearching = false;
         document.getElementById('solveBtn').disabled = false;
+    }
+    
+    /**
+     * Adds algorithm results to the comparison panel
+     */
+    addComparisonResult(algorithm, nodesExplored, pathLength, pathCost, time) {
+        const comparisonPanel = document.getElementById('comparisonPanel');
+        const comparisonBody = document.getElementById('comparisonBody');
+        
+        // Show the panel
+        comparisonPanel.style.display = 'block';
+        
+        // Check if this algorithm already has a row
+        const existingRows = comparisonBody.querySelectorAll('tr');
+        let existingRow = null;
+        
+        existingRows.forEach(row => {
+            const algorithmCell = row.querySelector('.algorithm-name');
+            if (algorithmCell && algorithmCell.textContent === algorithm) {
+                existingRow = row;
+            }
+        });
+        
+        // If row exists, update it. Otherwise, create new row
+        if (existingRow) {
+            const cells = existingRow.querySelectorAll('td');
+            cells[1].textContent = nodesExplored;
+            cells[2].textContent = pathLength;
+            cells[3].textContent = pathCost;
+            cells[4].textContent = time;
+            
+            // Add update animation
+            existingRow.classList.add('updated');
+            setTimeout(() => existingRow.classList.remove('updated'), 600);
+        } else {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="algorithm-name">${algorithm}</td>
+                <td>${nodesExplored}</td>
+                <td>${pathLength}</td>
+                <td>${pathCost}</td>
+                <td>${time}</td>
+            `;
+            comparisonBody.appendChild(row);
+        }
+        
+        // Highlight best/worst values
+        this.highlightBestWorst();
+    }
+    
+    /**
+     * Highlights best and worst values in the comparison table
+     */
+    highlightBestWorst() {
+        const tbody = document.getElementById('comparisonBody');
+        const rows = tbody.querySelectorAll('tr');
+        
+        if (rows.length === 0) return;
+        
+        // Extract values for each metric
+        const metrics = {
+            nodesExplored: [],
+            pathLength: [],
+            pathCost: [],
+            time: []
+        };
+        
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            metrics.nodesExplored.push({ value: parseInt(cells[1].textContent), cell: cells[1] });
+            metrics.pathLength.push({ value: parseInt(cells[2].textContent), cell: cells[2] });
+            
+            const costText = cells[3].textContent;
+            if (costText !== 'N/A') {
+                metrics.pathCost.push({ value: parseFloat(costText), cell: cells[3] });
+            }
+            
+            metrics.time.push({ value: parseFloat(cells[4].textContent), cell: cells[4] });
+        });
+        
+        // Clear previous highlights
+        tbody.querySelectorAll('.best-value, .worst-value').forEach(cell => {
+            cell.classList.remove('best-value', 'worst-value');
+        });
+        
+        // Highlight best (minimum) and worst (maximum) values
+        // For nodes explored, path length, and time: lower is better
+        this.highlightMetric(metrics.nodesExplored, true);
+        this.highlightMetric(metrics.pathLength, true);
+        this.highlightMetric(metrics.time, true);
+        
+        // For path cost: lower is better
+        if (metrics.pathCost.length > 1) {
+            this.highlightMetric(metrics.pathCost, true);
+        }
+    }
+    
+    /**
+     * Helper function to highlight best/worst values
+     */
+    highlightMetric(metricData, lowerIsBetter) {
+        if (metricData.length < 2) return;
+        
+        let best = metricData[0];
+        let worst = metricData[0];
+        
+        metricData.forEach(item => {
+            if (lowerIsBetter) {
+                if (item.value < best.value) best = item;
+                if (item.value > worst.value) worst = item;
+            } else {
+                if (item.value > best.value) best = item;
+                if (item.value < worst.value) worst = item;
+            }
+        });
+        
+        if (best.value !== worst.value) {
+            best.cell.classList.add('best-value');
+            worst.cell.classList.add('worst-value');
+        }
+    }
+    
+    /**
+     * Clears the comparison table
+     */
+    clearComparison() {
+        const comparisonBody = document.getElementById('comparisonBody');
+        const comparisonPanel = document.getElementById('comparisonPanel');
+        
+        comparisonBody.innerHTML = '';
+        comparisonPanel.style.display = 'none';
     }
     
     /**
@@ -508,6 +681,92 @@ class MazePathFinder {
         this.visited = visitedLocal;
         return { found: false, cost: null };
     }
+
+    /**
+     * A* Algorithm - Uses heuristic (Manhattan distance) for optimal pathfinding
+     * Combines actual cost (g) with estimated cost to goal (h) using f = g + h
+     * More efficient than Dijkstra when you know the goal location
+     */
+    async runAStar() {
+        const gScore = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(Infinity));
+        const fScore = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(Infinity));
+        const prev = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(null));
+        const visitedLocal = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(false));
+        const openSet = new Set();
+        
+        gScore[this.startPos.row][this.startPos.col] = 0;
+        fScore[this.startPos.row][this.startPos.col] = this.heuristic(this.startPos, this.endPos);
+        openSet.add(`${this.startPos.row},${this.startPos.col}`);
+        
+        const directions = [[-1,0],[1,0],[0,-1],[0,1]];
+
+        while (openSet.size > 0) {
+            // Find node in openSet with lowest fScore
+            let current = null;
+            let minF = Infinity;
+            for (const nodeKey of openSet) {
+                const [r, c] = nodeKey.split(',').map(Number);
+                if (fScore[r][c] < minF) {
+                    minF = fScore[r][c];
+                    current = { row: r, col: c };
+                }
+            }
+            
+            if (!current) break;
+            
+            const { row, col } = current;
+            
+            // Check if we reached the goal
+            if (row === this.endPos.row && col === this.endPos.col) {
+                this.buildPathFromPrev(prev, row, col);
+                this.visited = visitedLocal;
+                return { found: true, cost: gScore[row][col] };
+            }
+            
+            openSet.delete(`${row},${col}`);
+            visitedLocal[row][col] = true;
+            
+            // Visual feedback
+            if (!(row === this.startPos.row && col === this.startPos.col) && 
+                !(row === this.endPos.row && col === this.endPos.col)) {
+                const cell = this.getCellElement(row, col);
+                cell.classList.add('visited');
+            }
+            
+            // Explore neighbors
+            for (const [dx, dy] of directions) {
+                const nr = row + dx, nc = col + dy;
+                
+                // Check bounds and walls
+                if (nr < 0 || nr >= this.gridSize || nc < 0 || nc >= this.gridSize) continue;
+                if (this.maze[nr][nc] === 1) continue;
+                if (visitedLocal[nr][nc]) continue;
+                
+                const weight = this.weightsEnabled ? this.weights[nr][nc] : 1;
+                const tentativeGScore = gScore[row][col] + weight;
+                
+                if (tentativeGScore < gScore[nr][nc]) {
+                    prev[nr][nc] = { row, col };
+                    gScore[nr][nc] = tentativeGScore;
+                    fScore[nr][nc] = gScore[nr][nc] + this.heuristic({ row: nr, col: nc }, this.endPos);
+                    openSet.add(`${nr},${nc}`);
+                }
+            }
+            
+            await this.sleep(40);
+        }
+        
+        this.visited = visitedLocal;
+        return { found: false, cost: null };
+    }
+
+    /**
+     * Heuristic function for A* - Manhattan distance
+     * Returns the estimated cost from current position to goal
+     */
+    heuristic(pos1, pos2) {
+        return Math.abs(pos1.row - pos2.row) + Math.abs(pos1.col - pos2.col);
+    }
     
     /**
      * Animates the final path with visual effects
@@ -519,6 +778,11 @@ class MazePathFinder {
         for (const { row, col } of this.path) {
             const cell = this.getCellElement(row, col);
             cell.classList.add('path');
+            // Add star emoji to path (except start and end)
+            if (!(row === this.startPos.row && col === this.startPos.col) &&
+                !(row === this.endPos.row && col === this.endPos.col)) {
+                cell.textContent = '⭐';
+            }
             await this.sleep(100);
         }
     }
@@ -549,6 +813,18 @@ class MazePathFinder {
     clearSearchResults() {
         document.querySelectorAll('.cell.visited, .cell.path').forEach(cell => {
             cell.classList.remove('visited', 'path');
+            // Clear star emoji but preserve start/end/wall emojis
+            if (!cell.classList.contains('start') && 
+                !cell.classList.contains('end') && 
+                !cell.classList.contains('wall')) {
+                if (this.weightsEnabled) {
+                    const row = parseInt(cell.dataset.row);
+                    const col = parseInt(cell.dataset.col);
+                    cell.textContent = this.weights[row][col];
+                } else {
+                    cell.textContent = '';
+                }
+            }
         });
     }
     
@@ -563,11 +839,12 @@ class MazePathFinder {
         
         document.querySelectorAll('.cell').forEach(cell => {
             cell.className = 'cell';
+            cell.textContent = '';
         });
         
         document.getElementById('solveBtn').disabled = false;
         this.setMode('wall');
-        this.updateStatus("Maze cleared! Click 'Set Start' to begin.");
+        this.updateStatus("✨ Maze cleared! Click 'Set Start' to begin.");
     }
     
     /**

@@ -9,29 +9,36 @@
 <body>
     <header>
         <h1>🧠 Path Finder</h1>
-        <p class="subtitle">Using DFS,BFS & Dijkstra – Discrete Mathematics Project</p>
+        <p class="subtitle">Using DFS, BFS, Dijkstra & A* – Discrete Mathematics Project</p>
         <p class="description">
-            Each cell represents a vertex in a graph. Movement between cells represents edges.
+            Each cell represents a vertex in a graph. Movement between cells represents edges. 🗺️
         </p>
     </header>
 
     <main>
+        <div class="grid-size-control">
+            <label for="gridSizeInput">🎯 Grid Size:</label>
+            <input type="number" id="gridSizeInput" min="5" max="30" value="15" />
+            <button id="applyGridSizeBtn" class="action-btn">Apply Grid Size</button>
+        </div>
+
         <div class="controls">
             <div class="mode-controls">
-                <button id="setStartBtn" class="mode-btn">Set Start</button>
-                <button id="setEndBtn" class="mode-btn">Set End</button>
-                <button id="addWallsBtn" class="mode-btn active">Add/Remove Walls</button>
+                <button id="setStartBtn" class="mode-btn">🟢 Set Start</button>
+                <button id="setEndBtn" class="mode-btn">🔴 Set End</button>
+                <button id="addWallsBtn" class="mode-btn active">🧱 Add/Remove Walls</button>
             </div>
             
             <div class="action-controls">
-                <button id="solveBtn" class="action-btn solve-btn">Solve Maze</button>
-                <button id="clearBtn" class="action-btn clear-btn">Clear Maze</button>
+                <button id="solveBtn" class="action-btn solve-btn">🚀 Solve Maze</button>
+                <button id="clearBtn" class="action-btn clear-btn">🗑️ Clear Maze</button>
                 <select id="algorithmSelect" class="action-select" title="Choose algorithm">
-                    <option value="dfs" selected>DFS</option>
-                    <option value="bfs">BFS</option>
-                    <option value="dijkstra">Dijkstra</option>
+                    <option value="dfs" selected>DFS (Depth-First)</option>
+                    <option value="bfs">BFS (Breadth-First)</option>
+                    <option value="dijkstra">Dijkstra (Shortest)</option>
+                    <option value="astar">A* (Heuristic)</option>
                 </select>
-                <button id="toggleWeightsBtn" class="action-btn" title="Toggle random weights for Dijkstra" style="display:none;">Enable Weights</button>
+                <button id="toggleWeightsBtn" class="action-btn" title="Toggle random weights for Dijkstra" style="display:none;">⚖️ Enable Weights</button>
             </div>
         </div>
 
@@ -41,23 +48,23 @@
 
         <div class="legend">
             <div class="legend-item">
-                <div class="legend-color start"></div>
+                <span class="legend-emoji">🟢</span>
                 <span>Start Point</span>
             </div>
             <div class="legend-item">
-                <div class="legend-color end"></div>
+                <span class="legend-emoji">🔴</span>
                 <span>End Point</span>
             </div>
             <div class="legend-item">
-                <div class="legend-color wall"></div>
+                <span class="legend-emoji">🧱</span>
                 <span>Wall</span>
             </div>
             <div class="legend-item">
                 <div class="legend-color visited"></div>
-                <span>Visited (DFS)</span>
+                <span>Visited</span>
             </div>
             <div class="legend-item">
-                <div class="legend-color path"></div>
+                <span class="legend-emoji">⭐</span>
                 <span>Final Path</span>
             </div>
         </div>
@@ -65,12 +72,34 @@
         <div class="status" id="status">
             Click "Set Start" and choose a cell to begin
         </div>
+
+        <div class="comparison-panel" id="comparisonPanel" style="display: none;">
+            <h3>📊 Algorithm Comparison</h3>
+            <div class="table-container">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Algorithm</th>
+                            <th>Nodes Explored</th>
+                            <th>Path Length</th>
+                            <th>Path Cost</th>
+                            <th>Time (ms)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparisonBody">
+                        <!-- Results will be added here dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <button id="clearComparisonBtn" class="action-btn clear-comparison-btn">🗑️ Clear Results</button>
+        </div>
     </main>
 
     <footer>
         <p>
-            This project demonstrates graph theory and recursion from Discrete Mathematics.
-            The DFS algorithm explores the maze as a connected graph to find paths between vertices.
+            🎓 This project demonstrates graph theory and pathfinding algorithms from Discrete Mathematics.
+            Each algorithm explores the maze as a connected graph to find paths between vertices.
+            A* uses heuristics for optimal pathfinding! ✨
         </p>
     </footer>
 
